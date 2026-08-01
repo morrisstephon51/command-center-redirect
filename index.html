@@ -1,12 +1,520 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="0; url=https://theplugai.net/dashboard.html">
-<title>Command Center</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command Center — The Plug AI</title>
+<style>
+  :root {
+    --bg: #0B0B1A;
+    --surface: #12122A;
+    --card: #1A1A35;
+    --border: #2A2A55;
+    --purple: #8B5CF6;
+    --purple-dim: #5B4FE8;
+    --gold: #F4B942;
+    --green: #22C55E;
+    --red: #EF4444;
+    --blue: #38BDF8;
+    --text: #F0EEFF;
+    --muted: #7B7BA8;
+    --dim: #4A4A7A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* LOCK SCREEN */
+  #lock {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 20px;
+    padding: 24px;
+  }
+  #lock h1 { font-size: 1.5rem; color: var(--purple); letter-spacing: 0.05em; }
+  #lock p { color: var(--muted); font-size: 0.875rem; }
+  #pin-input {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 2rem;
+    letter-spacing: 0.5em;
+    text-align: center;
+    width: 180px;
+    padding: 12px;
+    border-radius: 10px;
+    outline: none;
+  }
+  #pin-input:focus { border-color: var(--purple); }
+  #pin-error { color: var(--red); font-size: 0.8rem; height: 20px; }
+
+  /* DASHBOARD */
+  #dash { display: none; }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .logo { font-size: 1rem; font-weight: 700; color: var(--purple); letter-spacing: 0.05em; }
+  .logo span { color: var(--gold); }
+  .header-meta { font-size: 0.75rem; color: var(--muted); }
+  #lock-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+  }
+  #lock-btn:hover { border-color: var(--purple); color: var(--text); }
+
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 20px;
+    display: grid;
+    gap: 28px;
+  }
+
+  /* SECTION */
+  section h2 {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* GRID */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
+
+  /* CARD */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color 0.15s, background 0.15s;
+    text-decoration: none;
+  }
+  a.card:hover { border-color: var(--purple); background: #1e1e40; }
+  .card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .card-label { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+  .card-sub { font-size: 0.75rem; color: var(--muted); }
+  .card-url { font-size: 0.7rem; color: var(--dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* STATUS BADGE */
+  .badge {
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 99px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .badge-live { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .badge-dev { background: rgba(56,189,248,0.15); color: var(--blue); border: 1px solid rgba(56,189,248,0.3); }
+  .badge-new { background: rgba(244,185,66,0.15); color: var(--gold); border: 1px solid rgba(244,185,66,0.3); }
+  .badge-watch { background: rgba(139,92,246,0.15); color: var(--purple); border: 1px solid rgba(139,92,246,0.3); }
+  .badge-infra { background: rgba(91,79,232,0.15); color: #A78BFA; border: 1px solid rgba(91,79,232,0.3); }
+
+  /* GRANT SUMMARY ROW */
+  .grant-row {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 80px 80px auto;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.8rem;
+  }
+  .grant-row:hover { border-color: var(--gold); }
+  .grant-name { font-weight: 600; color: var(--text); }
+  .grant-funder { color: var(--muted); font-size: 0.72rem; margin-top: 1px; }
+  .grant-amount { color: var(--gold); font-size: 0.78rem; }
+  .grant-deadline { font-size: 0.72rem; }
+  .deadline-urgent { color: var(--red); font-weight: 600; }
+  .deadline-warn { color: var(--gold); }
+  .deadline-ok { color: var(--green); }
+  .deadline-none { color: var(--dim); }
+
+  /* SCORE BAR */
+  .score-wrap { display: flex; align-items: center; gap: 6px; }
+  .score-bar { width: 40px; height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 99px; }
+  .score-high { background: var(--green); }
+  .score-mid { background: var(--gold); }
+  .score-low { background: var(--red); }
+  .score-num { font-size: 0.7rem; font-weight: 700; }
+
+  /* STATUS PILL */
+  .status-pill {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .s-identified { background: rgba(139,92,246,0.15); color: var(--purple); }
+  .s-researching { background: rgba(56,189,248,0.15); color: var(--blue); }
+  .s-submitted { background: rgba(34,197,94,0.15); color: var(--green); }
+  .s-watching { background: rgba(100,100,140,0.15); color: var(--muted); }
+
+  /* QUICK LINKS ROW */
+  .links-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .quick-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.12s;
+  }
+  .quick-link:hover { border-color: var(--purple); color: var(--purple); }
+
+  @media (max-width: 640px) {
+    .grant-row { grid-template-columns: 1fr auto; }
+    .grant-row .grant-amount, .grant-row .grant-deadline { display: none; }
+  }
+</style>
 </head>
 <body>
-<script>window.location.replace("https://theplugai.net/dashboard.html");</script>
-<p>Redirecting to <a href="https://theplugai.net/dashboard.html">Command Center</a>...</p>
+
+<!-- LOCK SCREEN -->
+<div id="lock">
+  <div class="logo">⚡ THE PLUG AI <span>·</span> COMMAND CENTER</div>
+  <p>Enter PIN to access</p>
+  <input id="pin-input" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="····">
+  <div id="pin-error"></div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dash">
+  <header>
+    <div class="logo">⚡ <span>PLUG AI</span> · COMMAND CENTER</div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="header-meta" id="date-display"></div>
+      <button id="lock-btn" onclick="lockDash()">Lock</button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- LIVE SITES -->
+    <section>
+      <h2>Live Sites &amp; Apps</h2>
+      <div class="grid">
+        <a class="card" href="https://psychic-bassoon-psi.vercel.app" target="_blank">
+          <div class="card-top">
+            <span class="card-label">The Plug AI</span>
+            <span class="badge badge-live">Live</span>
+          </div>
+          <div class="card-sub">AI literacy platform — Cook County faith communities</div>
+          <div class="card-url">psychic-bassoon-psi.vercel.app</div>
+        </a>
+
+        <a class="card" href="https://psychic-bassoon-psi.vercel.app/grants" target="_blank">
+          <div class="card-top">
+            <span class="card-label">Grant Tracker</span>
+            <span class="badge badge-new">New</span>
+          </div>
+          <div class="card-sub">15 grants · AI doc gen · daily alerts</div>
+          <div class="card-url">psychic-bassoon-psi.vercel.app/grants</div>
+        </a>
+
+        <a class="card" href="https://agent-world-olive.vercel.app" target="_blank">
+          <div class="card-top">
+            <span class="card-label">MUNDI · Agent World</span>
+            <span class="badge badge-live">Live</span>
+          </div>
+          <div class="card-sub">Sims-style fleet dashboard</div>
+          <div class="card-url">agent-world-olive.vercel.app</div>
+        </a>
+
+        <a class="card" href="https://stefan-portfolio-eight.vercel.app" target="_blank">
+          <div class="card-top">
+            <span class="card-label">Stefan's Portfolio</span>
+            <span class="badge badge-live">Live</span>
+          </div>
+          <div class="card-sub">Personal site</div>
+          <div class="card-url">stefan-portfolio-eight.vercel.app</div>
+        </a>
+
+        <a class="card" href="https://ai-video-reel-generator.vercel.app" target="_blank">
+          <div class="card-top">
+            <span class="card-label">AI Video Reel Generator</span>
+            <span class="badge badge-live">Live</span>
+          </div>
+          <div class="card-sub">6-agent council · Canvas + MediaRecorder</div>
+          <div class="card-url">ai-video-reel-generator.vercel.app</div>
+        </a>
+
+        <a class="card" href="https://morrisstephon51.github.io/forming-paws/" target="_blank">
+          <div class="card-top">
+            <span class="card-label">Forming Paws</span>
+            <span class="badge badge-dev">Dev</span>
+          </div>
+          <div class="card-sub">Health-first dog-breeding nonprofit — Chicago metro</div>
+          <div class="card-url">morrisstephon51.github.io/forming-paws</div>
+        </a>
+
+        <a class="card" href="https://morrisstephon51.github.io/Link-inbio/" target="_blank">
+          <div class="card-top">
+            <span class="card-label">Link-in-Bio</span>
+            <span class="badge badge-live">Live</span>
+          </div>
+          <div class="card-sub">Public profile page</div>
+          <div class="card-url">morrisstephon51.github.io/Link-inbio</div>
+        </a>
+
+        <a class="card" href="https://content-machine-wine.vercel.app" target="_blank">
+          <div class="card-top">
+            <span class="card-label">Content Machine</span>
+            <span class="badge badge-live">Live</span>
+          </div>
+          <div class="card-sub">Social content pipeline</div>
+          <div class="card-url">content-machine-wine.vercel.app</div>
+        </a>
+      </div>
+    </section>
+
+    <!-- GRANT PIPELINE SNAPSHOT -->
+    <section>
+      <h2>Grant Pipeline — Top Matches</h2>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+
+        <a class="grant-row" href="https://psychic-bassoon-psi.vercel.app/grants" target="_blank">
+          <div><div class="grant-name">Kresge Foundation</div><div class="grant-funder">Emerging Cities Communities Initiative · The Plug AI</div></div>
+          <div class="grant-amount">$50K–$150K</div>
+          <div class="grant-deadline deadline-none">Rolling</div>
+          <div class="score-wrap"><div class="score-bar"><div class="score-fill score-high" style="width:90%"></div></div><span class="score-num" style="color:var(--green)">90</span></div>
+          <div class="status-pill s-researching">LOI In</div>
+        </a>
+
+        <a class="grant-row" href="https://psychic-bassoon-psi.vercel.app/grants" target="_blank">
+          <div><div class="grant-name">IL Eliminate the Digital Divide</div><div class="grant-funder">DCEO · The Plug AI</div></div>
+          <div class="grant-amount">Up to $75K</div>
+          <div class="grant-deadline deadline-none">Pending sponsor</div>
+          <div class="score-wrap"><div class="score-bar"><div class="score-fill score-high" style="width:88%"></div></div><span class="score-num" style="color:var(--green)">88</span></div>
+          <div class="status-pill s-watching">Watching</div>
+        </a>
+
+        <a class="grant-row" href="https://psychic-bassoon-psi.vercel.app/grants" target="_blank">
+          <div><div class="grant-name">MacArthur Foundation</div><div class="grant-funder">Technology &amp; Society · The Plug AI</div></div>
+          <div class="grant-amount">$50K–$200K</div>
+          <div class="grant-deadline deadline-none">Rolling</div>
+          <div class="score-wrap"><div class="score-bar"><div class="score-fill score-high" style="width:78%"></div></div><span class="score-num" style="color:var(--green)">78</span></div>
+          <div class="status-pill s-identified">Identified</div>
+        </a>
+
+        <a class="grant-row" href="https://psychic-bassoon-psi.vercel.app/grants" target="_blank">
+          <div><div class="grant-name">Chicago Community Trust</div><div class="grant-funder">Technology for Good · The Plug AI</div></div>
+          <div class="grant-amount">$10K–$50K</div>
+          <div class="grant-deadline deadline-none">Check cycle</div>
+          <div class="score-wrap"><div class="score-bar"><div class="score-fill score-high" style="width:80%"></div></div><span class="score-num" style="color:var(--green)">80</span></div>
+          <div class="status-pill s-identified">Identified</div>
+        </a>
+
+        <a class="grant-row" href="https://psychic-bassoon-psi.vercel.app/grants" target="_blank">
+          <div><div class="grant-name">Woods Fund Chicago</div><div class="grant-funder">General Operating · The Plug AI</div></div>
+          <div class="grant-amount">$30K–$75K</div>
+          <div class="grant-deadline deadline-warn">Opens Feb 2027</div>
+          <div class="score-wrap"><div class="score-bar"><div class="score-fill score-high" style="width:82%"></div></div><span class="score-num" style="color:var(--green)">82</span></div>
+          <div class="status-pill s-watching">Watching</div>
+        </a>
+
+        <a class="card" href="https://psychic-bassoon-psi.vercel.app/grants" target="_blank" style="text-align:center;align-items:center;padding:10px;">
+          <span style="font-size:0.78rem;color:var(--purple);">View all 15 grants → Generate LOI + Narrative</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- REPOS -->
+    <section>
+      <h2>Repositories</h2>
+      <div class="grid">
+        <a class="card" href="https://github.com/morrisstephon51/psychic-bassoon" target="_blank">
+          <div class="card-top"><span class="card-label">psychic-bassoon</span><span class="badge badge-live">Active</span></div>
+          <div class="card-sub">The Plug AI — Next.js + Supabase + Vercel</div>
+        </a>
+        <a class="card" href="https://github.com/morrisstephon51/mundi-agent-dashboard" target="_blank">
+          <div class="card-top"><span class="card-label">mundi-agent-dashboard</span><span class="badge badge-live">Active</span></div>
+          <div class="card-sub">Agent fleet Sims-style dashboard</div>
+        </a>
+        <a class="card" href="https://github.com/morrisstephon51/ai-video-reel-generator" target="_blank">
+          <div class="card-top"><span class="card-label">ai-video-reel-generator</span><span class="badge badge-live">Active</span></div>
+          <div class="card-sub">6-agent council · Canvas + MediaRecorder</div>
+        </a>
+        <a class="card" href="https://github.com/morrisstephon51/aeos" target="_blank">
+          <div class="card-top"><span class="card-label">aeos</span><span class="badge badge-live">Active</span></div>
+          <div class="card-sub">AI Employee OS — AXIS identity + ops protocols</div>
+        </a>
+        <a class="card" href="https://github.com/morrisstephon51/forming-paws" target="_blank">
+          <div class="card-top"><span class="card-label">forming-paws</span><span class="badge badge-dev">Dev</span></div>
+          <div class="card-sub">Nonprofit dog-breeding matchmaking — Phase 1</div>
+        </a>
+        <a class="card" href="https://github.com/morrisstephon51/agent-II" target="_blank">
+          <div class="card-top"><span class="card-label">agent-II</span><span class="badge badge-live">Active</span></div>
+          <div class="card-sub">Agent infrastructure v2</div>
+        </a>
+        <a class="card" href="https://github.com/morrisstephon51/Enrollment_Funnel_Agent" target="_blank">
+          <div class="card-top"><span class="card-label">Enrollment_Funnel_Agent</span><span class="badge badge-live">Active</span></div>
+          <div class="card-sub">BigHeart Health — video performance report agent</div>
+        </a>
+        <a class="card" href="https://github.com/morrisstephon51/job_opportunity_scanner" target="_blank">
+          <div class="card-top"><span class="card-label">job_opportunity_scanner</span><span class="badge badge-live">Active</span></div>
+          <div class="card-sub">JobScout — ZipRecruiter + Indeed · cover letters</div>
+        </a>
+        <a class="card" href="https://github.com/morrisstephon51/mundi-world-state" target="_blank">
+          <div class="card-top"><span class="card-label">mundi-world-state</span><span class="badge badge-infra">Infra</span></div>
+          <div class="card-sub">Mac → cloud state sync (raw.githubusercontent.com)</div>
+        </a>
+        <a class="card" href="https://github.com/morrisstephon51/Stefan-Portfolio" target="_blank">
+          <div class="card-top"><span class="card-label">Stefan-Portfolio</span><span class="badge badge-live">Active</span></div>
+          <div class="card-sub">Personal portfolio site</div>
+        </a>
+        <a class="card" href="https://github.com/morrisstephon51/Link-inbio" target="_blank">
+          <div class="card-top"><span class="card-label">Link-inbio</span><span class="badge badge-live">Active</span></div>
+          <div class="card-sub">Link-in-bio + public command center dashboard</div>
+        </a>
+        <a class="card" href="https://github.com/morrisstephon51" target="_blank">
+          <div class="card-top"><span class="card-label">All Repos →</span></div>
+          <div class="card-sub">github.com/morrisstephon51</div>
+        </a>
+      </div>
+    </section>
+
+    <!-- INFRA + TOOLS -->
+    <section>
+      <h2>Infrastructure &amp; Tools</h2>
+      <div class="links-row">
+        <a class="quick-link" href="https://vercel.com/cam6stef" target="_blank">▲ Vercel</a>
+        <a class="quick-link" href="https://supabase.com/dashboard/project/dyoveisuiynyzurfjjhk" target="_blank">⚡ Supabase · Plug AI</a>
+        <a class="quick-link" href="https://supabase.com/dashboard/project/wyzcnkdonbdykidmcxvx" target="_blank">⚡ Supabase · Forming Paws</a>
+        <a class="quick-link" href="https://console.groq.com" target="_blank">🟣 Groq Console</a>
+        <a class="quick-link" href="https://console.anthropic.com" target="_blank">🔶 Anthropic Console</a>
+        <a class="quick-link" href="https://github.com/morrisstephon51" target="_blank">🐙 GitHub</a>
+        <a class="quick-link" href="https://kresge.fluxx.io" target="_blank">💜 Kresge Fluxx Portal</a>
+        <a class="quick-link" href="https://open.spotify.com" target="_blank">🎵 Spotify</a>
+        <a class="quick-link" href="https://linkedin.com/in/stephonmorris51" target="_blank">💼 LinkedIn</a>
+      </div>
+    </section>
+
+    <!-- AGENT FLEET -->
+    <section>
+      <h2>Agent Fleet</h2>
+      <div class="grid">
+        <div class="card">
+          <div class="card-top"><span class="card-label">Kai / clawd</span><span class="badge badge-live">Live</span></div>
+          <div class="card-sub">Coordination hub · Telegram gateway · always-on</div>
+        </div>
+        <div class="card">
+          <div class="card-top"><span class="card-label">AXIS</span><span class="badge badge-live">Live</span></div>
+          <div class="card-sub">Exec ops lead — The Plug AI · zero-to-revenue agent</div>
+        </div>
+        <div class="card">
+          <div class="card-top"><span class="card-label">MUNDI Orchestrator</span><span class="badge badge-live">Live</span></div>
+          <div class="card-sub">Multi-agent router + dispatcher</div>
+        </div>
+        <div class="card">
+          <div class="card-top"><span class="card-label">Codex</span><span class="badge badge-live">Live</span></div>
+          <div class="card-sub">Per-task coding agent</div>
+        </div>
+        <div class="card">
+          <div class="card-top"><span class="card-label">Antigravity</span><span class="badge badge-live">Live</span></div>
+          <div class="card-sub">Content pipeline · per-task general agent</div>
+        </div>
+        <div class="card">
+          <div class="card-top"><span class="card-label">Perplexity</span><span class="badge badge-live">Live</span></div>
+          <div class="card-sub">Research agent</div>
+        </div>
+        <div class="card">
+          <div class="card-top"><span class="card-label">Aexis</span><span class="badge badge-live">Live</span></div>
+          <div class="card-sub">Accountability agent</div>
+        </div>
+        <div class="card">
+          <div class="card-top"><span class="card-label">Subagent Registry</span><span class="badge badge-infra">233 agents</span></div>
+          <div class="card-sub">60 categories: marketing · engineering · GIS · sales · security</div>
+        </div>
+      </div>
+    </section>
+
+    <div style="text-align:center;padding:16px 0;color:var(--dim);font-size:0.7rem;">
+      theplugai.online · The plug is in ⚡
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const CORRECT_PIN = '1234'; // Change this to your actual PIN
+
+  function checkPin() {
+    const input = document.getElementById('pin-input');
+    const error = document.getElementById('pin-error');
+    if (input.value === CORRECT_PIN) {
+      sessionStorage.setItem('cc_auth', '1');
+      document.getElementById('lock').style.display = 'none';
+      document.getElementById('dash').style.display = 'block';
+      updateDate();
+    } else if (input.value.length === 4) {
+      error.textContent = 'Wrong PIN. Try again.';
+      input.value = '';
+      setTimeout(() => { error.textContent = ''; }, 2000);
+    }
+  }
+
+  function lockDash() {
+    sessionStorage.removeItem('cc_auth');
+    document.getElementById('dash').style.display = 'none';
+    document.getElementById('lock').style.display = 'flex';
+    document.getElementById('pin-input').value = '';
+  }
+
+  function updateDate() {
+    document.getElementById('date-display').textContent =
+      new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  document.getElementById('pin-input').addEventListener('input', checkPin);
+
+  if (sessionStorage.getItem('cc_auth') === '1') {
+    document.getElementById('lock').style.display = 'none';
+    document.getElementById('dash').style.display = 'block';
+    updateDate();
+  }
+</script>
 </body>
 </html>
